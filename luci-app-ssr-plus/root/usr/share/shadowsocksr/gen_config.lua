@@ -26,36 +26,23 @@ function vmess_vless()
 					}
 				}
 			}
-		},
-		packetEncoding = server.packet_encoding or nil
+		}
 	}
 end
 function trojan_shadowsocks()
 	outbound_settings = {
-		plugin = ((server.v2ray_protocol == "shadowsocks") and server.plugin ~= "none" and server.plugin) or (server.v2ray_protocol == "shadowsocksr" and "shadowsocksr") or nil,
-		pluginOpts = (server.v2ray_protocol == "shadowsocks") and server.plugin_opts or nil,
-		pluginArgs = (server.v2ray_protocol == "shadowsocksr") and {
-			"--protocol=" .. server.protocol,
-			"--protocol-param=" .. (server.protocol_param or ""),
-			"--obfs=" .. server.obfs,
-			"--obfs-param=" .. (server.obfs_param or "")
-		} or nil,
 		servers = {
 			{
 				address = server.server,
 				port = tonumber(server.server_port),
 				password = server.password,
-				method = ((server.v2ray_protocol == "shadowsocks") and server.encrypt_method_ss) or ((server.v2ray_protocol == "shadowsocksr") and server.encrypt_method) or nil,
+				method = (server.v2ray_protocol == "shadowsocks") and server.encrypt_method_ss or nil,
 				uot = (server.v2ray_protocol == "shadowsocks") and (server.uot == '1') or nil,
 				ivCheck = (server.v2ray_protocol == "shadowsocks") and (server.ivCheck == '1') or nil,
 				flow = (server.v2ray_protocol == "trojan") and (server.xtls == '1') and (server.vless_flow or "xtls-rprx-splice") or nil
 			}
 		}
 	}
-
-	if server.v2ray_protocol == "shadowsocksr" then
-		server.v2ray_protocol = "shadowsocks"
-	end
 end
 function socks_http()
 	outbound_settings = {
@@ -72,17 +59,6 @@ function socks_http()
 				} or nil
 			}
 		}
-	}
-end
-function wireguard()
-	outbound_settings = {
-		address = server.server,
-		port = tonumber(server.server_port),
-		localAddresses = server.local_addresses,
-		privateKey = server.private_key,
-		peerPublicKey = server.peer_pubkey,
-		preSharedKey = server.preshared_key or nil,
-		mtu = tonumber(server.mtu) or 1500
 	}
 end
 local outbound = {}
@@ -106,17 +82,11 @@ function outbound:handleIndex(index)
 		shadowsocks = function()
 			trojan_shadowsocks()
 		end,
-		shadowsocksr = function()
-			trojan_shadowsocks()
-		end,
 		socks = function()
 			socks_http()
 		end,
 		http = function()
 			socks_http()
-		end,
-		wireguard = function()
-			wireguard()
 		end
 	}
 	if switch[index] then
@@ -196,9 +166,7 @@ local Xray = {
 					-- headers
 					Host = server.ws_host or server.tls_host
 				} or nil,
-				path = server.ws_path,
-				maxEarlyData = tonumber(server.ws_ed) or nil,
-				earlyDataHeaderName = server.ws_ed_header or nil
+				path = server.ws_path
 			} or nil,
 			httpSettings = (server.transport == "h2") and {
 				-- h2
@@ -216,7 +184,6 @@ local Xray = {
 			grpcSettings = (server.transport == "grpc") and {
 				-- grpc
 				serviceName = server.serviceName or "",
-				mode = (server.grpc_mode ~= "gun") and server.grpc_mode or nil,
 				multiMode = (server.grpc_mode == "multi") and true or false,
 				idle_timeout = tonumber(server.idle_timeout) or nil,
 				health_check_timeout = tonumber(server.health_check_timeout) or nil,
@@ -227,8 +194,7 @@ local Xray = {
 		mux = (server.mux == "1" and server.xtls ~= "1" and server.transport ~= "grpc") and {
 			-- mux
 			enabled = true,
-			concurrency = tonumber(server.concurrency),
-			packetEncoding = (server.v2ray_protocol == "vmess" or server.v2ray_protocol == "vless") and server.packet_encoding or nil
+			concurrency = tonumber(server.concurrency)
 		} or nil
 	} or nil
 }

@@ -14,10 +14,6 @@ local function is_finded(e)
 	return luci.sys.exec('type -t -p "%s"' % e) ~= "" and true or false
 end
 
-local function is_installed(e)
-	return luci.model.ipkg.installed(e)
-end
-
 local server_table = {}
 local encrypt_methods = {
 	-- ssr
@@ -142,7 +138,7 @@ s = m:section(NamedSection, sid, "servers")
 s.anonymous = true
 s.addremove = false
 
-o = s:option(DummyValue, "ssr_url", "SS/SSR/V2RAY/TROJAN URL")
+o = s:option(DummyValue, "ssr_url", "SS/SSR/V2RAY/XRAY/TROJAN URL")
 o.rawhtml = true
 o.template = "shadowsocksr/ssrurl"
 o.value = sid
@@ -191,10 +187,6 @@ o:value("vless", translate("VLESS"))
 o:value("vmess", translate("VMess"))
 o:value("trojan", translate("Trojan"))
 o:value("shadowsocks", translate("Shadowsocks"))
-if is_installed("sagernet-core") then
-	o:value("shadowsocksr", translate("ShadowsocksR"))
-	o:value("wireguard", translate("WireGuard"))
-end
 o:value("socks", translate("Socks"))
 o:value("http", translate("HTTP"))
 o:depends("type", "v2ray")
@@ -246,7 +238,6 @@ o:depends({type = "socks5", auth_enable = true})
 o:depends({type = "v2ray", v2ray_protocol = "http", auth_enable = true})
 o:depends({type = "v2ray", v2ray_protocol = "socks", socks_ver = "5", auth_enable = true})
 o:depends({type = "v2ray", v2ray_protocol = "shadowsocks"})
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 o:depends({type = "v2ray", v2ray_protocol = "trojan"})
 
 o = s:option(ListValue, "encrypt_method", translate("Encrypt Method"))
@@ -255,7 +246,6 @@ for _, v in ipairs(encrypt_methods) do
 end
 o.rmempty = true
 o:depends("type", "ssr")
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 
 o = s:option(ListValue, "encrypt_method_ss", translate("Encrypt Method"))
 for _, v in ipairs(encrypt_methods_ss) do
@@ -279,10 +269,10 @@ o.default = "1"
 -- Shadowsocks Plugin
 o = s:option(Value, "plugin", translate("Obfs"))
 o:value("none", translate("None"))
-if is_finded("obfs-local") or is_installed("sagernet-core") then
+if is_finded("obfs-local") then
 	o:value("obfs-local", translate("obfs-local"))
 end
-if is_finded("v2ray-plugin") or is_installed("sagernet-core") then
+if is_finded("v2ray-plugin") then
 	o:value("v2ray-plugin", translate("v2ray-plugin"))
 end
 if is_finded("xray-plugin") then
@@ -290,16 +280,10 @@ if is_finded("xray-plugin") then
 end
 o.rmempty = true
 o:depends("type", "ss")
-if is_installed("sagernet-core") then
-	o:depends({type = "v2ray", v2ray_protocol = "shadowsocks"})
-end
 
 o = s:option(Value, "plugin_opts", translate("Plugin Opts"))
 o.rmempty = true
 o:depends("type", "ss")
-if is_installed("sagernet-core") then
-	o:depends({type = "v2ray", v2ray_protocol = "shadowsocks"})
-end
 
 o = s:option(ListValue, "protocol", translate("Protocol"))
 for _, v in ipairs(protocol) do
@@ -307,11 +291,9 @@ for _, v in ipairs(protocol) do
 end
 o.rmempty = true
 o:depends("type", "ssr")
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 
 o = s:option(Value, "protocol_param", translate("Protocol param (optional)"))
 o:depends("type", "ssr")
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 
 o = s:option(ListValue, "obfs", translate("Obfs"))
 for _, v in ipairs(obfs) do
@@ -319,11 +301,9 @@ for _, v in ipairs(obfs) do
 end
 o.rmempty = true
 o:depends("type", "ssr")
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 
 o = s:option(Value, "obfs_param", translate("Obfs param (optional)"))
 o:depends("type", "ssr")
-o:depends({type = "v2ray", v2ray_protocol = "shadowsocksr"})
 
 -- [[ Hysteria ]]--
 o = s:option(ListValue, "hysteria_protocol", translate("Protocol"))
@@ -436,25 +416,6 @@ o = s:option(Value, "ws_path", translate("WebSocket Path"))
 o:depends("transport", "ws")
 o.rmempty = true
 
-if is_finded("v2ray") then
-	-- 启用WS前置数据
-	o = s:option(Flag, "ws_ed_enable", translate("Enable early data"))
-	o:depends("transport", "ws")
-
-	-- WS前置数据
-	o = s:option(Value, "ws_ed", translate("Max Early Data"))
-	o:depends("ws_ed_enable", true)
-	o.datatype = "uinteger"
-	o.default = 2048
-	o.rmempty = true
-
-	-- WS前置数据标头
-	o = s:option(Value, "ws_ed_header", translate("Early Data Header Name"))
-	o:depends("ws_ed_enable", true)
-	o.default = "Sec-WebSocket-Protocol"
-	o.rmempty = true
-end
-
 -- [[ H2部分 ]]--
 
 -- H2域名
@@ -472,54 +433,47 @@ o = s:option(Value, "serviceName", translate("gRPC Service Name"))
 o:depends("transport", "grpc")
 o.rmempty = true
 
-if is_finded("xray") or is_installed("sagernet-core") then
-	-- gPRC模式
-	o = s:option(ListValue, "grpc_mode", translate("gRPC Mode"))
-	o:depends("transport", "grpc")
-	o:value("gun", translate("Gun"))
-	o:value("multi", translate("Multi"))
-	if is_installed("sagernet-core") then
-		o:value("raw", translate("Raw"))
-	end
-	o.rmempty = true
-end
+-- gPRC模式
+o = s:option(ListValue, "grpc_mode", translate("gRPC Mode"))
+o:depends("transport", "grpc")
+o:value("gun", translate("Gun"))
+o:value("multi", translate("Multi"))
+o.rmempty = true
 
-if is_finded("xray") or is_installed("sagernet-core") then
-	-- gRPC初始窗口
-	o = s:option(Value, "initial_windows_size", translate("Initial Windows Size"))
-	o.datatype = "uinteger"
-	o:depends("transport", "grpc")
-	o.default = 0
-	o.rmempty = true
+-- gRPC初始窗口
+o = s:option(Value, "initial_windows_size", translate("Initial Windows Size"))
+o.datatype = "uinteger"
+o:depends("transport", "grpc")
+o.default = 0
+o.rmempty = true
 
-	-- H2/gRPC健康检查
-	o = s:option(Flag, "health_check", translate("H2/gRPC Health Check"))
-	o:depends("transport", "h2")
-	o:depends("transport", "grpc")
-	o.rmempty = true
+-- H2/gRPC健康检查
+o = s:option(Flag, "health_check", translate("H2/gRPC Health Check"))
+o:depends("transport", "h2")
+o:depends("transport", "grpc")
+o.rmempty = true
 
-	o = s:option(Value, "read_idle_timeout", translate("H2 Read Idle Timeout"))
-	o.datatype = "uinteger"
-	o:depends({health_check = true, transport = "h2"})
-	o.default = 60
-	o.rmempty = true
+o = s:option(Value, "read_idle_timeout", translate("H2 Read Idle Timeout"))
+o.datatype = "uinteger"
+o:depends({health_check = true, transport = "h2"})
+o.default = 60
+o.rmempty = true
 
-	o = s:option(Value, "idle_timeout", translate("gRPC Idle Timeout"))
-	o.datatype = "uinteger"
-	o:depends({health_check = true, transport = "grpc"})
-	o.default = 60
-	o.rmempty = true
+o = s:option(Value, "idle_timeout", translate("gRPC Idle Timeout"))
+o.datatype = "uinteger"
+o:depends({health_check = true, transport = "grpc"})
+o.default = 60
+o.rmempty = true
 
-	o = s:option(Value, "health_check_timeout", translate("Health Check Timeout"))
-	o.datatype = "uinteger"
-	o:depends("health_check", 1)
-	o.default = 20
-	o.rmempty = true
+o = s:option(Value, "health_check_timeout", translate("Health Check Timeout"))
+o.datatype = "uinteger"
+o:depends("health_check", 1)
+o.default = 20
+o.rmempty = true
 
-	o = s:option(Flag, "permit_without_stream", translate("Permit Without Stream"))
-	o:depends({health_check = true, transport = "grpc"})
-	o.rmempty = true
-end
+o = s:option(Flag, "permit_without_stream", translate("Permit Without Stream"))
+o:depends({health_check = true, transport = "grpc"})
+o.rmempty = true
 
 -- [[ QUIC部分 ]]--
 o = s:option(ListValue, "quic_security", translate("QUIC Security"))
@@ -557,8 +511,7 @@ o.rmempty = true
 o = s:option(Value, "mtu", translate("MTU"))
 o.datatype = "uinteger"
 o:depends("transport", "kcp")
-o:depends({type = "v2ray", v2ray_protocol = "wireguard"})
--- o.default = 1350
+o.default = 1350
 o.rmempty = true
 
 o = s:option(Value, "tti", translate("TTI"))
@@ -600,25 +553,6 @@ o.rmempty = true
 
 o = s:option(Flag, "congestion", translate("Congestion"))
 o:depends("transport", "kcp")
-o.rmempty = true
-
--- [[ WireGuard 部分 ]]--
-o = s:option(DynamicList, "local_addresses", translate("Local addresses"))
-o:depends({type = "v2ray", v2ray_protocol = "wireguard"})
-o.rmempty = true
-
-o = s:option(Value, "private_key", translate("Private key"))
-o:depends({type = "v2ray", v2ray_protocol = "wireguard"})
-o.password = true
-o.rmempty = true
-
-o = s:option(Value, "peer_pubkey", translate("Peer public key"))
-o:depends({type = "v2ray", v2ray_protocol = "wireguard"})
-o.rmempty = true
-
-o = s:option(Value, "preshared_key", translate("Pre-shared key"))
-o:depends({type = "v2ray", v2ray_protocol = "wireguard"})
-o.password = true
 o.rmempty = true
 
 -- [[ TLS ]]--
@@ -772,17 +706,6 @@ o.default = "0"
 o:depends("type", "ssr")
 o:depends("type", "ss")
 o:depends("type", "trojan")
-
-if is_installed("sagernet-core") then
-	o = s:option(ListValue, "packet_encoding", translate("Packet Encoding"))
-	o:value("none", translate("none"))
-	o:value("packet", translate("packet (v2ray-core v5+)"))
-	o:value("xudp", translate("xudp (Xray-core)"))
-	o.default = "xudp"
-	o.rmempty = true
-	o:depends({type = "v2ray", v2ray_protocol = "vless"})
-	o:depends({type = "v2ray", v2ray_protocol = "vmess"})
-end
 
 o = s:option(Flag, "switch_enable", translate("Enable Auto Switch"))
 o.rmempty = false
